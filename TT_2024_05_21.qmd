@@ -1,0 +1,57 @@
+---
+title: "TT_2024_05_21"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+#load data
+tuesdata <- tidytuesdayR::tt_load('2024-05-21')
+td<-tuesdata$emissions
+
+#unusused experiments
+# nation<-td%>%filter(parent_type=="Nation State")
+# nationish<-td%>%filter(parent_type=="State-owned Entity")
+# rest<-td%>%filter(parent_type=="Investor-owned Company")
+# peaks<-td%>%
+#   mutate(commodity2=case_when(
+#     commodity=="Natural Gas"~commodity,
+#     commodity=="Oil & NGL"~commodity,
+#     TRUE~"Other"
+#   ))%>%
+#   group_by(parent_entity,commodity2,year)%>%
+#   mutate(total_emissions_MtCO2e=sum(total_emissions_MtCO2e))%>%
+#   distinct(parent_entity,commodity2,year,.keep_all = T)%>%
+#   select(-commodity,-production_value,-production_unit)%>%
+#   group_by(parent_entity,commodity2)%>%
+#   slice_max(total_emissions_MtCO2e)%>%
+#   ungroup()
+# ggplot(peaks,aes(x=year,y = total_emissions_MtCO2e))+
+#   geom_point()+
+#   facet_grid(rows=vars(commodity2),scales = "free_y")
+
+china<-td%>%filter(parent_entity=="China (Coal)")%>%
+  group_by(year)%>%
+  summarize(
+    parent_entity="China - Coal",
+    total_emissions_MtCO2e=sum(total_emissions_MtCO2e),
+    production_value=sum(production_value)
+  )%>%
+  arrange(year)
+
+# china%>%ggplot(aes(x=production_value,y=total_emissions_MtCO2e))+
+#   geom_line()+
+#   geom_point()+
+#   scale_y_continuous(trans="log10")+
+#   scale_x_continuous(trans="log10")
+# doesn't work because methodology makes this just linear
+china coa
+gazprom gas
+exx oil
+gas vs oil path
+
+```
+
