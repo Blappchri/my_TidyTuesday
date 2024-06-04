@@ -33,14 +33,14 @@ td<-tuesdata$emissions
 #   geom_point()+
 #   facet_grid(rows=vars(commodity2),scales = "free_y")
 
-china<-td%>%filter(parent_entity=="China (Coal)")%>%
-  group_by(year)%>%
-  summarize(
-    parent_entity="China - Coal",
-    total_emissions_MtCO2e=sum(total_emissions_MtCO2e),
-    production_value=sum(production_value)
-  )%>%
-  arrange(year)
+# china<-td%>%filter(parent_entity=="China (Coal)")%>%
+#   group_by(year)%>%
+#   summarize(
+#     parent_entity="China - Coal",
+#     total_emissions_MtCO2e=sum(total_emissions_MtCO2e),
+#     production_value=sum(production_value)
+#   )%>%
+#   arrange(year)
 
 # china%>%ggplot(aes(x=production_value,y=total_emissions_MtCO2e))+
 #   geom_line()+
@@ -48,10 +48,54 @@ china<-td%>%filter(parent_entity=="China (Coal)")%>%
 #   scale_y_continuous(trans="log10")+
 #   scale_x_continuous(trans="log10")
 # doesn't work because methodology makes this just linear
-china coa
-gazprom gas
-exx oil
-gas vs oil path
+
+combine_coal<-td%>%
+  mutate(
+    commodity2=case_when(
+      grepl("Coal",commodity)~"Coal",
+      TRUE~commodity
+    )
+  )%>%
+  group_by(commodity2,year,parent_entity,parent_type)%>%
+  summarize(
+    emission=sum(total_emissions_MtCO2e),.groups = "drop"
+  )%>%
+  select(
+    parent_entity,parent_type,commodity=commodity2,year,emission
+  )
+
+biggest<-combine_coal%>%
+  filter(parent_type=="Investor-owned Company")%>%
+  slice_max(year)%>%
+  group_by(commodity)%>%
+  slice_max(emission)%>%
+  ungroup()%>%
+  select(commodity,parent_entity,parent_type)
+
+to_plot<-combine_coal%>%
+  inner_join(
+    biggest%>%select(commodity, parent_entity)
+  )%>%
+  mutate(
+    parent_entity=case_when(
+      parent_entity=="ExxonMobil"&
+        commodity=="Natural Gas"~"ExxonMobil - Gas",
+      parent_entity=="ExxonMobil"~"ExxonMobil - Oil",
+      parent_entity=="Glencore"~"Glencore - Coal",
+      TRUE~"Holcim - Cement"
+    )
+  )%>%
+  select(parent_entity,year,emission)
+
+to_plot%>%ggplot(aes(y=emission,x=year,col=parent_entity))+
+  geom_line()+
+  coord_cartesian(xlim=c(1970,NA))+
+  scale_x_continuous(NULL)+
+  scale_y_continuous("Yearly CO2 Emission\n(megatons, literally)")+
+  theme_minimal()+
+  scale_color_discrete(
+    NULL,type = c("lightgreen","black","darkred","grey80"))+
+  ggtitle("Historic Emissions of 2022's Biggest\nInvestor-owned Polluters per Area within their Specialty")
 
 ```
 
