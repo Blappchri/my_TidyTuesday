@@ -51,12 +51,12 @@ cleaned_country<-td%>%
     country_old=country,
     country=case_when(
       is.na(country)~"Stateless Cheese",
-      country=="United Kingdom"~"GB: UK",
-      #country=="Ireland"~"GB: Ireland",
-      country=="Scotland"~"GB: Scotland",
-      country=="Great Britain"~"GB: GB",
-      country=="Wales"~"GB: Wales",
-      country=="England"~"GB: England",
+      country=="United Kingdom"~"UK: UK",
+      #country=="Ireland"~"UK: Ireland",
+      country=="Scotland"~"UK: Scotland",
+      country=="Great Britain"~"UK: GB",
+      country=="Wales"~"UK: Wales",
+      country=="England"~"UK: England",
       country%in%c(
         "England, Great Britain, United Kingdom",
         "England, Scotland, United Kingdom",
@@ -66,7 +66,7 @@ cleaned_country<-td%>%
         "Great Britain, United Kingdom, Wale",
         "Scotland, United Kingdom",
         "United Kingdom, Wales"
-      )~"GB: Multiple",
+      )~"UK: Multiple",
       grepl(",", country)~"Multiple Countries",
       grepl(" and ", country)~"Multiple Countries",
       TRUE~country
@@ -75,21 +75,21 @@ cleaned_country<-td%>%
   group_by(country)%>%
   mutate(
     country=case_when(
-      grepl("GB: ",country)~country,#keep all these
+      grepl("UK: ",country)~country,#keep all these
       n()<3~"Rare Countries",
       TRUE~country
     )
   )%>%
   bind_rows(
       eval(.)%>%
-        filter(grepl("GB: ",country))%>%
-        mutate(country='Great Britain(Total)')
+        filter(grepl("UK: ",country))%>%
+        mutate(country='United Kingdom(Total)')
       )%>%
   mutate(
     group=case_when(
-      grepl("GB: ",country)~"Subsets simplified into 'Great Britain(Total)'",
+      grepl("UK: ",country)~"Subsets simplified into 'United Kingdom(Total)'",
       country%in%c(
-        "Australia","Canada","Great Britain(Total)", "New Zealand", "Ireland", "United States"
+        "Australia","Canada","United Kingdom(Total)", "New Zealand", "Ireland", "United States"
       )~"(Mostly) English-speaking",
       country%in%c("Brazil","India","Mexico")~"Rest of World",
       country%in%c("Rare Countries", "Stateless Cheese", "Multiple Countries")~"Special Cases",
@@ -104,7 +104,7 @@ for_order<-cleaned_country%>%
 for_order<-for_order%>%
   mutate(
     fake_n_for_order=case_when(
-      grepl("GB: ",country)~-1,
+      grepl("UK: ",country)~-1,
       group=="Special Cases"~0,
       TRUE~n
     )
@@ -116,14 +116,14 @@ to_plot1<-cleaned_country%>%
   mutate(
     group=factor(group,levels=c(
       "(Mostly) English-speaking",
-      "Subsets simplified into 'Great Britain(Total)'",
+      "Subsets simplified into 'United Kingdom(Total)'",
       "No English, Europe",
       "Special Cases",
       "Rest of World"
     )),
     country=factor(country,levels=for_order),
     for_outline=case_when(
-      grepl("GB: ",country)~TRUE,
+      grepl("UK: ",country)~TRUE,
       TRUE~FALSE
       )
     )
@@ -150,34 +150,36 @@ fig1<-(to_plot1%>%
   theme(
     axis.text.x=element_text(angle = -40, hjust = 0),
     panel.grid.major.x  = element_blank(),
-    plot.margin = unit(c(5.5,60,5.5,5.5),"pt")
+    plot.margin = unit(c(5.5,65,5.5,5.5),"pt"),
+    plot.background = element_rect(colour="white")
     )+
   scale_y_continuous("Number of Distinct Cheeses in Database")+
   scale_x_discrete(NULL)+
   ggtitle("Language Bias in the Cheese.com Database #TidyTuesday")+
   annotate(
     "label", 
-    x="Multiple Countries",
+    x="Brazil",
     y = 290, 
     label = "Supporting Anecdote: Author is Swiss and can confirm\nthat most of their family's local favourites are missing",
     fill="grey90"
     )+
   annotate(
     "label", 
-    x="Multiple Countries",
+    x="Brazil",
     y = 250, 
-    label = "The country assignment within Great Britain was messy and\n the region is thus included both as summarized total and by subset",
+    label = "The country assignment within the United Kingdom was messy and the\nregion is thus included both as summarized total and by subset",
     fill="grey90"
     ))+
   coord_cartesian(clip = "off",expand = FALSE,ylim=c(0,315))
 
 ggsave(
   plot = fig1,
-  device = "pdf",
+  device = "png",
+  dpi=300,
   units = "cm",
   width = 20,
   height = 17,
-  filename = "fig1_06_04.pdf")
+  filename = "fig1_06_04.png")
 ```
 
 ## Fig 2 Taste
