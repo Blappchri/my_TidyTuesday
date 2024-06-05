@@ -43,6 +43,133 @@ table(td$color,useNA = "a")
 table(td$type,useNA = "a")
 ```
 
-look at language bias, just barplot coloured by language
+## Fig 1: Language
 
-flavour alluvial diagram
+```{r}
+cleaned_country<-td%>%
+  transmute(
+    country_old=country,
+    country=case_when(
+      is.na(country)~"Unspecified",
+      country=="United Kingdom"~"GB_UK",
+      country=="Ireland"~"GB_Ireland",
+      country=="Scotland"~"GB_Scotland",
+      country=="Great Britain"~"GB_Multiple",
+      country=="Wales"~"GB_Wales",
+      country=="England"~"GB_England",
+      country%in%c(
+        "England, Great Britain, United Kingdom",
+        "England, Scotland, United Kingdom",
+        "England, Scotland, Wales",
+        "England, United Kingdom",
+        "Great Britain, Scotland, United Kingdom",
+        "Great Britain, United Kingdom, Wale",
+        "Scotland, United Kingdom",
+        "United Kingdom, Wales"
+      )~"GB_Multiple",
+      grepl(",", country)~"Multiple Countries",
+      grepl(" and ", country)~"Multiple Countries",
+      TRUE~country
+    )
+  )%>%
+  group_by(country)%>%
+  mutate(
+    country=case_when(
+      grepl("GB_",country)~country,#keep all these
+      n()<3~"Rare Countries",
+      TRUE~country
+    )
+  )%>%
+  bind_rows(
+      eval(.)%>%
+        filter(grepl("GB_",country))%>%
+        mutate(country='Total GB')
+      )%>%
+  mutate(
+    group=case_when(
+      grepl("GB_",country)~"Subsets Cleaned to 'Total GB'",
+      country%in%c(
+        "Australia","Canada","Total GB", "New Zealand", "United States"
+      )~"(Mostly) English-speaking",
+      country%in%c("Brazil","India","Mexico")~"Rest of World",
+      country%in%c("Rare Countries", "Unspecified", "Multiple Countries")~"Special Case",
+      TRUE~"No English, Europe"
+    )
+  )
+
+for_order<-cleaned_country%>%
+  group_by(country)%>%
+  summarize(n=n(), group=first(group))
+#n_gb<-for_order%>%filter(country=="Total GB")%>%pull(n) #retired
+for_order<-for_order%>%
+  mutate(
+    fake_n_for_order=case_when(
+      grepl("GB_",country)~-1,
+      group=="Special Case"~0,
+      TRUE~n
+    )
+  )%>%
+  arrange(-fake_n_for_order,-n)%>%
+  pull(country)
+
+to_plot1<-cleaned_country%>%
+  mutate(
+    group=factor(group,levels=c(
+      "(Mostly) English-speaking",
+      "Subsets Cleaned to 'Total GB'",
+      "No English, Europe",
+      "Special Case",
+      "Rest of World"
+    )),
+    country=factor(country,levels=for_order),
+    for_outline=case_when(
+      grepl("GB_",country)~TRUE,
+      TRUE~FALSE
+      )
+    )
+
+fig1<-(to_plot1%>%
+  ggplot(
+    aes(
+      x=country,
+      fill=group,
+      #col=for_outline
+      )
+    )+
+  geom_bar()+
+  scale_fill_discrete(
+    NULL,
+    type=c("darkblue","gray90","lightblue","grey30","deeppink")
+    )+
+  #scale_color_discrete(type=c("white","darkblue"))+
+  guides(
+    #color="none",
+    fill=guide_legend(nrow=2,position = "bottom")
+    )+
+  theme_minimal()+
+  theme(
+    axis.text.x=element_text(angle = -40, hjust = 0),
+    panel.grid.major.x  = element_blank()
+    )+
+  scale_y_continuous("Distinct Cheeses in Database")+
+  scale_x_discrete(NULL)+
+  ggtitle("Bias in Cheese.com Database")+
+  annotate(
+    "label", 
+    x="Unspecified",
+    y = 280, 
+    label = "Author is Swiss and can confirm that\nmost of their family's favourites are missing"
+    )) 
+
+ggsave(
+  plot = fig1,
+  device = "svg",
+  units = "cm",
+  width = 10,
+  height = 7,
+  filename = "fig1_06_04")
+```
+
+## Fig 2 Taste
+
+Concept: Take tastes per cheese with enough mentions and create flow diagram
