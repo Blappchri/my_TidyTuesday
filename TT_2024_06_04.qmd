@@ -50,13 +50,13 @@ cleaned_country<-td%>%
   transmute(
     country_old=country,
     country=case_when(
-      is.na(country)~"Unspecified",
-      country=="United Kingdom"~"GB_UK",
-      country=="Ireland"~"GB_Ireland",
-      country=="Scotland"~"GB_Scotland",
-      country=="Great Britain"~"GB_Multiple",
-      country=="Wales"~"GB_Wales",
-      country=="England"~"GB_England",
+      is.na(country)~"Stateless Cheese",
+      country=="United Kingdom"~"GB: UK",
+      #country=="Ireland"~"GB: Ireland",
+      country=="Scotland"~"GB: Scotland",
+      country=="Great Britain"~"GB: GB",
+      country=="Wales"~"GB: Wales",
+      country=="England"~"GB: England",
       country%in%c(
         "England, Great Britain, United Kingdom",
         "England, Scotland, United Kingdom",
@@ -66,7 +66,7 @@ cleaned_country<-td%>%
         "Great Britain, United Kingdom, Wale",
         "Scotland, United Kingdom",
         "United Kingdom, Wales"
-      )~"GB_Multiple",
+      )~"GB: Multiple",
       grepl(",", country)~"Multiple Countries",
       grepl(" and ", country)~"Multiple Countries",
       TRUE~country
@@ -75,24 +75,24 @@ cleaned_country<-td%>%
   group_by(country)%>%
   mutate(
     country=case_when(
-      grepl("GB_",country)~country,#keep all these
+      grepl("GB: ",country)~country,#keep all these
       n()<3~"Rare Countries",
       TRUE~country
     )
   )%>%
   bind_rows(
       eval(.)%>%
-        filter(grepl("GB_",country))%>%
-        mutate(country='Total GB')
+        filter(grepl("GB: ",country))%>%
+        mutate(country='Great Britain(Total)')
       )%>%
   mutate(
     group=case_when(
-      grepl("GB_",country)~"Subsets Cleaned to 'Total GB'",
+      grepl("GB: ",country)~"Subsets simplified into 'Great Britain(Total)'",
       country%in%c(
-        "Australia","Canada","Total GB", "New Zealand", "United States"
+        "Australia","Canada","Great Britain(Total)", "New Zealand", "Ireland", "United States"
       )~"(Mostly) English-speaking",
       country%in%c("Brazil","India","Mexico")~"Rest of World",
-      country%in%c("Rare Countries", "Unspecified", "Multiple Countries")~"Special Case",
+      country%in%c("Rare Countries", "Stateless Cheese", "Multiple Countries")~"Special Cases",
       TRUE~"No English, Europe"
     )
   )
@@ -104,8 +104,8 @@ for_order<-cleaned_country%>%
 for_order<-for_order%>%
   mutate(
     fake_n_for_order=case_when(
-      grepl("GB_",country)~-1,
-      group=="Special Case"~0,
+      grepl("GB: ",country)~-1,
+      group=="Special Cases"~0,
       TRUE~n
     )
   )%>%
@@ -116,14 +116,14 @@ to_plot1<-cleaned_country%>%
   mutate(
     group=factor(group,levels=c(
       "(Mostly) English-speaking",
-      "Subsets Cleaned to 'Total GB'",
+      "Subsets simplified into 'Great Britain(Total)'",
       "No English, Europe",
-      "Special Case",
+      "Special Cases",
       "Rest of World"
     )),
     country=factor(country,levels=for_order),
     for_outline=case_when(
-      grepl("GB_",country)~TRUE,
+      grepl("GB: ",country)~TRUE,
       TRUE~FALSE
       )
     )
@@ -139,7 +139,7 @@ fig1<-(to_plot1%>%
   geom_bar()+
   scale_fill_discrete(
     NULL,
-    type=c("darkblue","gray90","lightblue","grey30","deeppink")
+    type=c("darkblue","gray90","lightblue","grey30","purple")
     )+
   #scale_color_discrete(type=c("white","darkblue"))+
   guides(
@@ -149,25 +149,35 @@ fig1<-(to_plot1%>%
   theme_minimal()+
   theme(
     axis.text.x=element_text(angle = -40, hjust = 0),
-    panel.grid.major.x  = element_blank()
+    panel.grid.major.x  = element_blank(),
+    plot.margin = unit(c(5.5,60,5.5,5.5),"pt")
     )+
-  scale_y_continuous("Distinct Cheeses in Database")+
+  scale_y_continuous("Number of Distinct Cheeses in Database")+
   scale_x_discrete(NULL)+
-  ggtitle("Bias in Cheese.com Database")+
+  ggtitle("Language Bias in the Cheese.com Database #TidyTuesday")+
   annotate(
     "label", 
-    x="Unspecified",
-    y = 280, 
-    label = "Author is Swiss and can confirm that\nmost of their family's favourites are missing"
-    )) 
+    x="Multiple Countries",
+    y = 290, 
+    label = "Supporting Anecdote: Author is Swiss and can confirm\nthat most of their family's local favourites are missing",
+    fill="grey90"
+    )+
+  annotate(
+    "label", 
+    x="Multiple Countries",
+    y = 250, 
+    label = "The country assignment within Great Britain was messy and\n the region is thus included both as summarized total and by subset",
+    fill="grey90"
+    ))+
+  coord_cartesian(clip = "off",expand = FALSE,ylim=c(0,315))
 
 ggsave(
   plot = fig1,
-  device = "svg",
+  device = "pdf",
   units = "cm",
-  width = 10,
-  height = 7,
-  filename = "fig1_06_04")
+  width = 20,
+  height = 17,
+  filename = "fig1_06_04.pdf")
 ```
 
 ## Fig 2 Taste
