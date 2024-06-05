@@ -1,0 +1,48 @@
+---
+title: "TT_2024_06_04"
+format: html
+editor: visual
+---
+
+## Loading
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+tuesdata <- tidytuesdayR::tt_load('2024-06-04')
+
+td<-tuesdata$cheeses
+```
+
+## Exploration
+
+```{r}
+table(td$country)
+
+single_country<-td%>%
+  filter(!grepl(",", country))%>%
+  filter(!grepl(" and ", country))%>%#spaces necessary to not hit _land
+  filter(country!="United Kingdom")
+
+table(single_country$country)
+table(single_country$country)%>%table()
+
+bigger_country<-single_country%>%
+  group_by(country)%>%
+  filter(n()>=30)%>%
+  ungroup()
+
+table(bigger_country$country)
+
+td$flavor%>%stringr::str_split(", ")%>%unlist()%>%table(useNA = "a")
+
+table(td$family,useNA = "a")
+table(td$milk,useNA = "a")
+table(td$color,useNA = "a")
+table(td$type,useNA = "a")
+```
+
+look at language bias, just barplot coloured by language
+
+flavour alluvial diagram

@@ -98,4 +98,3 @@ to_plot%>%ggplot(aes(y=emission,x=year,col=parent_entity))+
   ggtitle("Historic Emissions of 2022's Biggest\nInvestor-owned Polluters per Area within their Specialty")
 
 ```
-
