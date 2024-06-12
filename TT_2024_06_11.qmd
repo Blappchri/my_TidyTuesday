@@ -84,7 +84,7 @@ for_plot<-main%>%
       )*log10(n()+1)
   )
 
-for_plot%>%ggplot(aes(x=spread_x,y=1,label=state))+
+fig<-for_plot%>%ggplot(aes(x=spread_x,y=1,label=state))+
   geom_point(alpha=0)+
   ggrepel::geom_label_repel(
     min.segment.length = 100,
@@ -99,29 +99,33 @@ for_plot%>%ggplot(aes(x=spread_x,y=1,label=state))+
     axis.ticks.y=element_blank(),
     axis.text.y = element_blank(),
     panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank()
+    panel.grid.minor.y = element_blank(),
+    plot.background = element_rect(fill="#F0FFFF")
     )+
   scale_x_continuous(
-    "Particating Colleges in State",
+    "Particating Colleges per State",
     labels = c(0,1,2,3,5,10, 20),
     breaks = log10(1+c(0,1,2,3,5,10,20)),
     minor_breaks = FALSE
     )+
   coord_cartesian(ylim=c(0.92,1.02))+
-  annotate("label",x=0.05,y=0.94,label="AK: Alaska has the least colleges\nat is thus merely at 0 out of 9",fill="grey70")+
-  annotate("label",x=0.3,y=0.93,label="DC: The District of Columbia is\nat 1 out of 22")+
-  annotate("label",x=1.15,y=0.945,label="VA: Virginia is at 13 out of 157")+
-  annotate("label",x=0.6,y=0.95,label="FL: Florida is at 3 out of 384")+
-  annotate("label",x=1.35,y=0.93,label="NY: New York has the most participating\ncolleges and thus reaches 22 out of 406")+
-  annotate("label",x=0.8,y=0.925, label="Source of college numbers per\nstate: https://www.univstats.com/states/",fill="pink")
+  annotate("label",x=0.05,y=0.94,label="AK: Alaska has the least colleges\nand is thus merely at 0 out of 9",fill="white")+
+  annotate("label",x=0.3,y=0.93,label="DC: The District of Columbia is\nat 1 out of 22",fill="white")+
+  annotate("label",x=1.14,y=0.945,label="VA: Virginia is at 13 out of 157",fill="white")+
+  annotate("label",x=0.6,y=0.95,label="FL: Florida is at 3 out of 384",fill="white")+
+  annotate("label",x=0.9,y=0.941,label="KY: Kentucky is at 7 out of 87",fill="white")+
+  annotate("label",x=1.25,y=0.93,label="NY: New York has the most participating\ncolleges and thus reaches 22 out of 406",fill="white")+
+  annotate("label",x=1.21,y=0.955,label="CA: California has the most colleges overall\nand reaches a 17 out of 650",fill="white")+
+  annotate("label",x=0.8,y=0.925, label="Source for the additional total college numbers per state:\nhttps://www.univstats.com/states/",fill="pink")+
+  ggtitle("Participation of Colleges in the Campus Pride Index Project #TidyTuesday")
 
 ggsave(
-  plot = fig1,
+  plot = fig,
   device = "png",
   dpi=300,
   units = "cm",
-  width = 20,
-  height = 17,
+  width = 40,
+  height = 12,
   filename = "fig_06_11.png")
 ```
 
