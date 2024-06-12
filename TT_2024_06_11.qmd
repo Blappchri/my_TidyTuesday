@@ -1,0 +1,127 @@
+---
+title: "TT_2024_06_11"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggbeeswarm)
+
+tuesdata <- tidytuesdayR::tt_load('2024-06-11')
+
+main<-tuesdata$pride_index
+add<-tuesdata$pride_index_tags
+
+table(main$community_type,useNA = "a")
+
+dat<-main%>%
+  transmute(
+    rating=rating,
+    community=community_type,
+    state=stringi::stri_extract(campus_location,regex = "..$")
+  )
+```
+
+## Fig
+
+```{r}
+main<-bind_rows(
+  data.frame(
+    state=c("AK","DE","HI","IA","LA", "MS", "NV" ,"SC", "WY"),
+    participating=0
+    ),
+  dat%>%
+    group_by(state)%>%
+    summarize(participating=n())
+  )
+## abbandonned idea
+# dat%>%
+#   mutate(
+#     community=case_when(
+#       community=="large urban city"~"Larger City",
+#       community=="medium city"~"Larger City",
+#       community=="small city"~"Smaller City",
+#       TRUE~"Not Urban"
+#     ),
+#     state=factor(state,levels=order)
+#   )%>%
+#   arrange(state)%>%
+#   ggplot(aes(x=state,y=rating, col=community))+
+#   geom_jitter(height = 0.05,width = 0.25)+
+#   theme_minimal()+
+#   theme(panel.grid.major.y  = element_blank())+
+#   coord_cartesian(clip = "off",ylim = c(1,5.1),expand = FALSE)+
+#   scale_y_discrete(drop=FALSE)
+
+main<-main%>%
+  mutate(
+    cat=case_when(
+      participating==0~"None",
+      participating==1~"1",
+      participating<=5~"2 to 5",
+      participating<=15~"6 to 15",
+      TRUE~"16 or more"
+    )
+  )
+
+set.seed(1)
+
+for_plot<-main%>%
+  mutate(
+    spread_x=log10(1+participating+rnorm(51,0,0.1))
+  )%>%
+  group_by(participating)%>%
+  mutate(
+    spread_y=runif(
+      n(),
+      -1,
+      1
+      )*log10(n()+1)
+  )
+
+for_plot%>%ggplot(aes(x=spread_x,y=1,label=state))+
+  geom_point(alpha=0)+
+  ggrepel::geom_label_repel(
+    min.segment.length = 100,
+    max.overlaps = 100,
+    direction = "y",fill="pink",
+    )+
+  #coord_fixed(0.2)+
+  theme_minimal()+
+  theme(
+    axis.line.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
+    )+
+  scale_x_continuous(
+    "Particating Colleges in State",
+    labels = c(0,1,2,3,5,10, 20),
+    breaks = log10(1+c(0,1,2,3,5,10,20)),
+    minor_breaks = FALSE
+    )+
+  coord_cartesian(ylim=c(0.92,1.02))+
+  annotate("label",x=0.05,y=0.94,label="AK: Alaska has the least colleges\nat is thus merely at 0 out of 9",fill="grey70")+
+  annotate("label",x=0.3,y=0.93,label="DC: The District of Columbia is\nat 1 out of 22")+
+  annotate("label",x=1.15,y=0.945,label="VA: Virginia is at 13 out of 157")+
+  annotate("label",x=0.6,y=0.95,label="FL: Florida is at 3 out of 384")+
+  annotate("label",x=1.35,y=0.93,label="NY: New York has the most participating\ncolleges and thus reaches 22 out of 406")+
+  annotate("label",x=0.8,y=0.925, label="Source of college numbers per\nstate: https://www.univstats.com/states/",fill="pink")
+
+ggsave(
+  plot = fig1,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 20,
+  height = 17,
+  filename = "fig_06_11.png")
+```
+
