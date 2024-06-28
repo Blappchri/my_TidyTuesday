@@ -1,0 +1,59 @@
+---
+title: "TT_2024_06_25"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggwordcloud)
+
+tuesdata <- tidytuesdayR::tt_load('2024-06-25')
+
+main<-tuesdata$lgbtq_movies
+
+table(main$adult,substr(main$release_date,1,4))
+
+redo, adult, very old, old, new
+
+for_cloud<-main%>%
+  filter(!is.na(release_date))%>%
+  transmute(
+    old=release_date<"2010-01-01",
+    adult=adult,
+    desc=overview
+  )
+table(for_cloud$adult,for_cloud$old)
+
+per_word<-for_cloud%>%
+  tidyr::separate_longer_delim(cols=desc,delim = " ")%>%
+  mutate(desc=stringr::str_remove_all(desc,"[:punct:]"))%>%
+  mutate(desc=tolower(desc))%>%
+  filter(desc!=" ")%>%
+  mutate(desc=stringr::str_remove_all(desc," "))%>%
+  filter(!desc%in%c(
+    "about","each","from","have","more","most","other","some","that","they","their","them","these","this","when","will","what","with","after","between","into","just","sure", "your","shes","only", "after","back", "film","into","only","through","which","while"
+  ))%>%
+  filter(nchar(desc)>3)%>%
+  group_by(desc)%>%
+  filter(n()>5)%>%
+  ungroup()
+
+top<-per_word%>%
+  group_by(desc,old,adult)%>%
+  summarize(amount=n())%>%
+  group_by(old,adult)%>%
+  slice_max(amount, n=25)%>%
+  ungroup()
+
+table(top$desc)
+```
+
+```{r}
+per_word%>%ggplot(aes(label=desc))+
+  geom_text_wordcloud()
+```
