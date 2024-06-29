@@ -18,42 +18,135 @@ main<-tuesdata$lgbtq_movies
 
 table(main$adult,substr(main$release_date,1,4))
 
-redo, adult, very old, old, new
-
 for_cloud<-main%>%
   filter(!is.na(release_date))%>%
   transmute(
-    old=release_date<"2010-01-01",
-    adult=adult,
+    category=case_when(
+      adult~"adult",
+      release_date<"2000-01-01"~"Pre-2000",
+      release_date<"2011-01-01"~"2000-2010",
+      release_date<"2019-01-01"~"2011-2018",
+      TRUE~"2019 and onwards"
+    ),
     desc=overview
   )
-table(for_cloud$adult,for_cloud$old)
+table(for_cloud$category)
 
 per_word<-for_cloud%>%
   tidyr::separate_longer_delim(cols=desc,delim = " ")%>%
-  mutate(desc=stringr::str_remove_all(desc,"[:punct:]"))%>%
-  mutate(desc=tolower(desc))%>%
-  filter(desc!=" ")%>%
-  mutate(desc=stringr::str_remove_all(desc," "))%>%
-  filter(!desc%in%c(
-    "about","each","from","have","more","most","other","some","that","they","their","them","these","this","when","will","what","with","after","between","into","just","sure", "your","shes","only", "after","back", "film","into","only","through","which","while"
+  rename(word=desc)%>%
+  mutate(word=stringr::str_remove_all(word,"[:punct:]"))%>%
+  mutate(word=tolower(word))%>%
+  filter(word!=" ")%>%
+  mutate(word=stringr::str_remove_all(word," "))%>%
+  filter(!word%in%c( #words that are filler or kinda-duplicates. This is a stupid way to do this, but it's fine for just practicing this kind of figure
+    "about","each","from","have","more","most","other","some","that","their","these","this","when","will","what","with","after","between","into","just","sure", "your","shes","only", "after","back", "film","into","only","through","which","while", "all", "and","are","but","for","has","his","its","his","not","one","the","two","was","who","you","over","she","they","where","new", "her","him","get","them","him","new","out","can","men","women","girls","been","both","down","like","off","scenes","series","story","way","another","being","cant","gets","finds","meets","than","himself","documentary","then","others","own","how","becomes", "boys", "lives", "friend", "years","also", "before", "come", "during", "every", "hes", "lesbians", "there", "very", "films"
   ))%>%
-  filter(nchar(desc)>3)%>%
-  group_by(desc)%>%
+  filter(nchar(word)>2)%>%
+  group_by(word)%>%
   filter(n()>5)%>%
   ungroup()
 
-top<-per_word%>%
-  group_by(desc,old,adult)%>%
+top<-per_word%>%#replaced with different approach
+  group_by(word,category)%>%
   summarize(amount=n())%>%
-  group_by(old,adult)%>%
+  group_by(category)%>%
   slice_max(amount, n=25)%>%
   ungroup()
 
-table(top$desc)
+table(top$word)
+
+# to_plot<-per_word%>%filter(word%in%top$word)%>%
+#   group_by(word,category)%>%
+#   summarize(size=n())%>%
+#   ungroup()
+  
+to_plot<-per_word%>%
+  group_by(word,category)%>%
+  summarize(size=n())%>%
+  group_by(category)%>%
+  slice_max(size,n=33)%>%
+  ungroup()%>%
+  mutate(
+    #angle=45*sample(c(0,-1,2),n(),replace=T)
+    angle=runif(n(),-60,0)
+  )
+
 ```
 
+## Create Base Figures
+
 ```{r}
-per_word%>%ggplot(aes(label=desc))+
-  geom_text_wordcloud()
+ad<-to_plot%>%#not really intersting
+  filter(category=="adult")%>%
+  ggplot(aes(label=word,size=size,angle=angle))+
+  geom_text_wordcloud(col="white")+
+  theme(
+    plot.background = element_rect(fill="darkred"),
+    panel.background = element_rect(fill = NA),
+    plot.title = element_text(color="white")
+    )+
+  ggtitle("test")
+
+old<-to_plot%>%
+  filter(category=="Pre-2000")%>%
+  ggplot(aes(label=word,size=size,angle=angle))+
+  geom_text_wordcloud(col="white")+
+  theme(
+    plot.background = element_rect(fill="grey10"),
+    panel.background = element_rect(fill = NA),
+    plot.title = element_text(color="white")
+    )+
+  ggtitle("Before 2000")
+
+sold<-to_plot%>%
+  filter(category=="2000-2010")%>%
+  ggplot(aes(label=word,size=size,angle=angle))+
+  geom_text_wordcloud(col="white")+
+  theme(
+    plot.background = element_rect(fill="forestgreen"),
+    panel.background = element_rect(fill = NA),
+    plot.title = element_text(color="white")
+    )+
+  ggtitle("2000 to 2010")
+
+snew<-to_plot%>%
+  filter(category=="2011-2018")%>%
+  ggplot(aes(label=word,size=size,angle=angle))+
+  geom_text_wordcloud(col="white")+
+  theme(
+    plot.background = element_rect(fill="orange3"),
+    panel.background = element_rect(fill = NA),
+    plot.title = element_text(color="white")
+    )+
+  ggtitle("2011 to 2018")
+
+new<-to_plot%>%
+  filter(category=="2019 and onwards")%>%
+  ggplot(aes(label=word,size=size,angle=angle))+
+  geom_text_wordcloud(col="white")+
+  theme(
+    plot.background = element_rect(fill="pink2"),
+    panel.background = element_rect(fill = NA),
+    plot.title = element_text(color="white")
+    )+
+  ggtitle("2019 and Onwards")
 ```
+
+## Clean and Arrange
+
+```{r}
+library(ggpubr)
+out<-ggarrange(old,sold,snew,new,nrow = 2,ncol=2)
+
+ggsave(
+  plot = out,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 11,
+  height = 8,
+  filename = "fig_06_25.png")
+```
+
+
