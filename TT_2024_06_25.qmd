@@ -144,7 +144,7 @@ ggsave(
   device = "png",
   dpi=300,
   units = "cm",
-  width = 11,
+  width = 13,
   height = 8,
   filename = "fig_06_25.png")
 ```
