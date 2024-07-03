@@ -1,0 +1,54 @@
+---
+title: "TT_2025_07_02"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+
+tuesdata <- tidytuesdayR::tt_load('2024-07-02')
+
+main<-tuesdata$tt_datasets
+
+plan, visually complexity throught time. Animation, Y axis cols, x axis rows, stackedn on top of each other with colours, changing title, log scale_shape
+
+length(unique(paste(main$year,main$week)))
+
+per_w<-main%>%
+  group_by(year,week)%>%
+  summarize(biggest=max(variables),.groups = "drop")%>%
+  mutate(xpos=cumsum(biggest)-biggest)
+
+to_plot<-main%>%
+  left_join(per_w)%>%
+  mutate(
+    x0=xpos,
+    x1=xpos+variables
+  )%>%
+  group_by(
+    year,week
+  )%>%
+  arrange(observations)%>%
+  mutate(
+    y1=cumsum(observations),
+    y0=y1-observations
+  )%>%
+  ungroup()%>%
+  select(x0,x1,y0,y1)
+```
+
+```{r}
+plot<-to_plot%>%
+  ggplot(aes(xmin=x0,xmax=x1,ymin=y0+1,ymax=y1+1))+
+  geom_rect(col="black")+
+  theme_minimal()+
+  scale_y_continuous(trans="log10")
+```
+
+
