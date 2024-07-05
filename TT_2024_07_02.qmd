@@ -16,8 +16,6 @@ tuesdata <- tidytuesdayR::tt_load('2024-07-02')
 
 main<-tuesdata$tt_datasets
 
-plan, visually complexity throught time. Animation, Y axis cols, x axis rows, stackedn on top of each other with colours, changing title, log scale_shape
-
 length(unique(paste(main$year,main$week)))
 
 per_w<-main%>%
@@ -34,7 +32,7 @@ to_plot<-main%>%
   group_by(
     year,week
   )%>%
-  arrange(observations)%>%
+  arrange(-variables)%>%
   mutate(
     y1=cumsum(observations),
     y0=y1-observations
@@ -46,9 +44,9 @@ to_plot<-main%>%
 ```{r}
 plot<-to_plot%>%
   ggplot(aes(xmin=x0,xmax=x1,ymin=y0+1,ymax=y1+1))+
-  geom_rect(col="black")+
+  geom_rect(fill="black")+
   theme_minimal()+
   scale_y_continuous(trans="log10")
 ```
 
-
+Didnt work out as expected. Will skip this week and do other projects
