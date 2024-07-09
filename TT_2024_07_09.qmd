@@ -1,0 +1,88 @@
+---
+title: "TT_2024_07_09"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-07-09')
+
+main<-tuesdata$drob_funs
+
+table(main$community_type,useNA = "a")
+
+dat_complexity<-main%>%
+  group_by(contents)%>%
+  summarize(
+    n_pack=length(unique(pkgs)),
+    n_fun=length(unique(funs)),
+    n_all=n()
+  )%>%
+  arrange(-n_all)%>%
+  mutate(index=row_number())%>%
+  tidyr::pivot_longer(cols=n_pack:n_all)%>%
+  mutate(
+    name=case_when(
+      name=="n_all"~"Function calls",
+      name=="n_fun"~"Distinct functions",
+      TRUE~"Packages"
+    )%>%factor(levels = c("Function calls","Distinct functions","Packages"))
+  )
+
+table(table(main$funs))#number of one-off functions 133
+table(table(main$pkgs))#number of one-off packages 10
+check<-table(main$funs)%>%data.frame()#most common function aes at 1033
+check2<-table(main%>%distinct(pkgs,contents)%>%pull(pkgs))%>%data.frame()#most common external package ggplot and dplyr at 108
+#check3<-table(paste0(main$funs,main$contents))%>%data.frame()#not interesting
+```
+
+```{r}
+fig<-dat_complexity%>%
+  ggplot(aes(x=index,y=value,col=name))+
+  geom_line()+
+  scale_y_continuous("Number of [Thing]\nper TidyTuesday")+
+  coord_cartesian(ylim = c(0,300))+
+  scale_x_continuous(
+    "",
+    breaks = c(1,112),
+    labels = c('"biggest"\nTidyTuesday','"smallest"\nTidyTuesday'),
+    minor_breaks = 1.0001)+#cheat. line won't show if identical to major point
+  theme(
+    panel.grid.major.x = element_blank(),
+    #panel.grid.minor.x = element_blank(),
+    panel.background = element_rect(fill="#282a36"),
+    plot.background = element_rect(fill="grey80"),
+    legend.position = "inside",
+    legend.position.inside = c(0.9,0.9),
+    legend.background = element_rect(fill="NA"),
+    legend.text = element_text(color="white")
+    )+
+  ggtitle("Stalking a #TidyTuesday Regular across 112 R Scripts")+
+  scale_color_discrete("",type=c("#b590cd","#f2667f","#f1e872"))+
+  annotate(
+    "label",
+    x=90,
+    y=185,
+    label="Fun Facts:
+    Most used package: tie dplyr/ggplot at 108
+    Number of packages only used once: 10
+    Most used function: aes() at 1033
+    Number of functions only used once: 133",
+    fill="grey80")
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 23,
+  height = 17,
+  filename = "fig_07_09.png")
+```
+
