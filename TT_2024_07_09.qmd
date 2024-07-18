@@ -42,6 +42,8 @@ check2<-table(main%>%distinct(pkgs,contents)%>%pull(pkgs))%>%data.frame()#most c
 #check3<-table(paste0(main$funs,main$contents))%>%data.frame()#not interesting
 ```
 
+## Figure
+
 ```{r}
 fig<-dat_complexity%>%
   ggplot(aes(x=index,y=value,col=name))+

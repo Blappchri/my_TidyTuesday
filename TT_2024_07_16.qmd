@@ -1,0 +1,168 @@
+---
+title: "TT_2024_07_16"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(tram)
+
+tuesdata <- tidytuesdayR::tt_load('2024-07-16')
+
+main<-tuesdata$ewf_appearances
+
+names_to_use<-main%>%
+  group_by(team_id)%>%
+  slice_max(season,with_ties = F)%>%
+  ungroup()%>%
+  select(team_id,team_name)%>%
+  mutate(#Shorten names a bit
+    team_name=stringr::str_remove(team_name," Women"),
+    team_name=stringr::str_remove(team_name," Ladies"),
+    team_name=stringr::str_remove(team_name," Lionesses"),
+    team_name=stringr::str_remove(team_name," Belles")
+  )
+
+league_category<-main%>%
+  group_by(team_id)%>%
+  summarize(
+    which_league=case_when(
+      all(tier==1)~"Always 1st League",
+      all(tier==2)~"Always 2nd League",
+      TRUE~"Varying"
+    )%>%factor(levels = c("Always 1st League","Always 2nd League","Varying"))
+  )
+
+for_model<-main%>%
+  select(
+    team1=team_id,
+    team2=opponent_id,
+    scored=goals_for,
+    home=home_team,
+    tier=tier,
+    season=season
+  )%>%
+  transmute(
+    team=factor(team1),
+    opponent=factor(team2),
+    home=home,
+    scored=scored,
+    tier=tier,
+    season=factor(season)
+  )%>%
+  mutate(
+    exact=case_when(
+      scored<5~scored,
+      TRUE~NA
+    ),
+    right_cens=case_when(
+      scored<5~NA,
+      TRUE~4
+    ),
+    scored=R(exact,cright=right_cens)
+  )%>%
+  select(-exact,-right_cens)
+
+#crreate estimates as summaries to visualize
+model<-Colr(
+  scored~team+opponent+home+tier+season|team,
+  data=for_model,
+  bounds=c(0,Inf),#tell model about lower boundary
+  support=c(0,4.5),#set area of importance
+  scale_shift=TRUE#It's been a while since I studied this, but it should make the prowesses more comparable
+  )
+
+#grab beta
+prowess<-coef(model)[grepl(pattern = "^team",names(coef(model)))]
+names(prowess)<-stringr::str_remove(names(prowess),"team")
+#grab gamma
+consistency<-coef(model)[grepl(pattern = "^scl_team",names(coef(model)))]
+names(consistency)<-stringr::str_remove(names(consistency),"scl_team")
+
+to_plot<-names_to_use%>%
+  left_join(data.frame(
+      team_id=names(prowess), prowess=prowess
+      ))%>%
+  mutate(
+    prowess=case_when(
+      is.na(prowess)~1,#fill in model reference
+      TRUE~prowess
+    )
+  )%>%
+  left_join(data.frame(
+    team_id=names(consistency), consistency=consistency
+  ))%>%
+  mutate(
+    consistency=case_when(
+      is.na(consistency)~0,#same as above
+      TRUE~consistency
+    )
+  )%>%left_join(league_category)
+
+#small undajusted checks because I can never remember the direction of effects
+summary(#"lowest" prowess
+  main%>%
+    filter(grepl("Manchester City", team_name))%>%
+    pull(goals_for)
+  )
+summary(#"highest" prowess
+  main%>%
+    filter(grepl("Watford", team_name))%>%
+    pull(goals_for)
+  )
+#need to reverse direction
+var(#"lowest" consistency
+  main%>%
+    filter(grepl("Chelsea", team_name))%>%
+    pull(goals_for)
+  )
+var(#"highest" consistency
+  main%>%
+    filter(grepl("London Bees", team_name))%>%
+    pull(goals_for)
+  )
+#direction already fits
+```
+
+## Figure
+
+```{r}
+fig<-to_plot%>%ggplot(aes(
+  y=consistency,
+  x=-prowess,
+  label=team_name,
+  col=which_league
+  ))+
+  geom_point(shape=18,size=5)+
+  theme_minimal()+
+  scale_x_continuous("Overall Prowess→", labels = NULL)+
+  scale_y_continuous("Consistency→", labels = NULL)+
+  theme(
+    plot.background = element_rect(fill="black"),
+    text = element_text(color="white")
+  )+
+  ggtitle("Scoring Performance per Club in English Women's Football #tidyTuesday")+
+  geom_label_repel(
+    segment.colour="white",
+    min.segment.length = 0,
+    colour = "black",size = 3
+    )+
+  scale_colour_discrete("Leagues",type=c("white","#558B2FFF","#AED581FF"))
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 23,
+  height = 17,
+  filename = "fig_07_16.png")
+
+
+```
