@@ -1,0 +1,83 @@
+---
+title: "TT_2024_07_30"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-07-30')
+
+main<-tuesdata$summer_movies
+
+table(main$title_type)
+
+for_fig<-main%>%
+  filter(title_type=="movie")%>%
+  select(year,runtime_minutes,average_rating)%>%
+  filter(year>=1960)%>%
+  mutate(
+    dec=case_when(
+      year>=2020~"20s",
+      year>=2010~"10s",
+      year>=2000~"00s",
+      year>=1990~"90s",
+      year>=1980~"80s",
+      year>=1970~"70s",
+      TRUE~"60s"
+    )%>%factor(levels=c("60s","70s","80s","90s","00s","10s","20s"))
+    )%>%
+  filter(dec%in%c("80s","90s","00s","10s"))
+for_fig$dec%>%table()
+summary(for_fig$runtime_minutes)
+```
+
+## Figure
+
+```{r}
+(fig<-for_fig%>%
+  mutate(
+    runtime_minutes=case_when(
+      dec=="80s"~runtime_minutes-0.3,
+      dec=="90s"~runtime_minutes-0.1,
+      dec=="00s"~runtime_minutes+0.1,
+      dec=="10s"~runtime_minutes+0.3
+    )
+  )%>%
+  ggplot(aes(x=runtime_minutes,col=dec))+
+  #ggbeeswarm::geom_beeswarm(method = "compactswarm",pch=18)
+  geom_hline(yintercept=0.5,col="black",linetype=3)+
+  stat_ecdf()+
+  coord_cartesian(xlim=c(73,122),expand = FALSE)+
+  scale_x_continuous(
+    "Movie Runtime",
+    breaks = c(75,90,105,120,135),
+    minor_breaks = NULL,
+    labels = c("1h15m","1h30m","1h45m","2h","2h15m")
+    )+
+  scale_y_continuous("% of Movies longer than X",labels = scales::percent)+
+  theme_linedraw()+
+  scale_color_discrete("Decade",type = c("#53354DFF", "#B887ADFF", "#99E3DDFF", "#008A80FF"))+
+  theme(panel.background = element_rect(fill="lemonchiffon"),
+        legend.key = element_rect(fill="white"))+
+  ggtitle('Runtime of "Summer" Movies throughout recent Decades #TidyTuesday')+
+  annotate("label",x = 100,y = 0.1,label="The line for the 80s has a sharp rise,\nindicating that the movies from that period\nhave a very homogenous runtime",fill="#53354DFF",col="lemonchiffon")+
+  annotate("label",x = 108,y = 0.3,label="The line for the 10s is consistently\n to the right of the line for the 90s,\nindicating that recent movies\ntend to run longer",fill="#008A80FF",col="lemonchiffon")+
+    annotate("label",x = 111,y = 0.5,label="The medians for the groups all\nlie between 90 and 95 minutes",fill="black",col="lemonchiffon"))
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 20,
+  height = 13,
+  filename = "fig_07_30.png")
+```
+
+
