@@ -10,6 +10,7 @@ editor: visual
 library(tidytuesdayR)
 library(dplyr)
 library(ggplot2)
+library(ggrepel)
 
 tuesdata <- tidytuesdayR::tt_load('2024-08-06')
 
@@ -30,6 +31,7 @@ main_rel<-main%>%
 
 participants<-main_rel%>%
   group_by(year,noc)%>%
+  distinct(year,noc,id)%>%#age used to prevent
   summarize(n_part=n(),.groups = "drop")
 
 medals<-main_rel%>%
@@ -58,27 +60,144 @@ differences=joined%>%
   ungroup()%>%
   filter(year!=1896)
 
+library(readxl)
+#from previous project
+cont_linking <- read_excel("~/Documents/website/cont_linking.xlsx")
+
+for_figure<-differences%>%
+  left_join(cleaned_countries)%>%
+  select(-n)%>%
+  filter(year==2012)%>%
+  filter(!(n_part==0&d_p==0))%>%
+  left_join(
+    cont_linking%>%select(team=`Country or Area`,Continent)
+  )%>%
+  mutate(#some cleaning
+    Continent=case_when(
+      !is.na(Continent)~Continent,
+      team%in%c("Congo (Brazzaville)","Cote d'Ivoire","Congo (Kinshasa)","Cape Verde","Guinea Bissau", "Swaziland","Tanzania")~"Africa",
+      team%in%c("Brunei","Hong Kong","Iran","South Korea","Laos","Palestine", "North Korea","Syria","Vietnam","Timor Leste","Chinese Taipei")~"Asia",
+      team%in%c("Czech Republic","Great Britain","Moldova","Macedonia","Russia","Serbia and Montenegro")~"Europe",
+      team%in%c("Netherlands Antilles","United States")~"North America",
+      team%in%c("Federated States of Micronesia")~"Oceania",
+      team%in%c("Bolivia","Venezuela")~"South America",
+      TRUE~"Special Case"
+    )
+  )
+
+
 ```
-
-join countries and continents
-
-try figure for 08 vs 12
-
-post that
-
-extend later
 
 ## Figure
 
 ```{r}
 
+final<-for_figure%>%
+  filter(Continent!="Special Case")%>%#too hard to integrate with arrows
+  mutate(
+    Continent=case_when(
+      Continent%in%c("North America","South America")~"The Americas",
+      Continent%in%c("Asia","Oceania")~"Asia and Oceania",
+      TRUE~Continent
+    )
+    )%>%
+  mutate(
+    Continent=factor(Continent,levels=c(
+      #"Special Case",
+      "The Americas",
+      "Asia and Oceania",
+      "Africa",
+      "Europe"
+      ))
+  )%>%
+  mutate(
+    Entity=case_when(
+      Continent=="Special Case"~team,
+      sqrt(abs(d_p)^2+abs(8*d_m)^2)>25~team,
+      TRUE~"Rest of\nContinent"
+    )
+  )%>%
+  group_by(Continent,Entity)%>%#to adjust for the above
+  summarize(
+    d_p=sum(d_p),
+    d_m=sum(d_m)
+  )%>%
+  ungroup()%>%
+  mutate(
+    order_is_group=Entity=="Rest of\nGroup",
+    order_angle=atan(d_p/d_m),
+    order_cat=case_when(
+      d_p<0&d_m>=0~1,
+      d_m>=0~2,
+      d_p>=0~3,
+      TRUE~4
+    ),
+    )%>%
+  #arrange(Continent,order_is_group,order_cat,-order_size)%>%
+  arrange(Continent,order_cat,order_angle)%>%
+  mutate(
+    pos_x=cumsum(d_p),
+    pos_y=cumsum(d_m),
+    start_x=lag(pos_x,default=0),
+    start_y=lag(pos_y,default=0)
+    )
+  
+cont_sum<-final%>%
+  group_by(Continent)%>%
+  summarize(
+    pos_x=last(pos_x),
+    pos_y=last(pos_y),
+    start_x=first(start_x),
+    start_y=first(start_y),
+    type="b"
+  )
+
+fig<-final%>%
+  ggplot(aes(
+    x=start_x,xend=pos_x,
+    y=start_y,yend=pos_y,
+    col=Continent,label=Entity
+  ))+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)+
+    geom_label_repel(
+    aes(
+      x = (start_x+pos_x)/2,
+      y = (start_y+pos_y)/2,
+    ),
+    min.segment.length = 0,
+    show.legend = FALSE,segment.color="black",nudge_x = 50,nudge_y = 1,force = 1.3
+  )+
+  geom_segment(arrow = arrow(type = "closed",angle = 15))+
+  geom_segment(data=cont_sum,linetype = 2,inherit.aes = FALSE,
+               aes(
+                 x=start_x,xend=pos_x,
+                 y=start_y,yend=pos_y,
+                 col=Continent))+
+  scale_y_continuous("Change in Medals")+
+  scale_x_continuous("Change in Qualified Athletes")+
+  theme_minimal()+
+  ggtitle("National Performance in Summer Games: London vs Beijing")+
+  theme(legend.position = "bottom",plot.background = element_rect(fill="grey90"))+
+  scale_color_manual(
+    values=c(
+      "Africa"="coral3",
+      "Asia and Oceania"="mediumorchid4",
+      "Europe"="darkolivegreen",
+      "The Americas"="peachpuff3"
+    )
+  )+
+  annotate("label",x = -50,y = 41,label="Not included:\nDelegation of Individual Olympic Athletes")+
+  annotate("label",x = -50,y = 35,label="Note: Inclusion in 'Rest of Continent' is\ndetermined not by overall counts, but by the\nsize of the difference between the two games")
+
+fig
 
 ggsave(
   plot = fig,
   device = "png",
   dpi=300,
   units = "cm",
-  width = 20,
-  height = 13,
-  filename = "fig_07_30.png")
+  width = 35,
+  height = 22,
+  filename = "fig_08_06.png")
 ```
