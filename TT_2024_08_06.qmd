@@ -1,0 +1,84 @@
+---
+title: "TT_2024_08_06"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-08-06')
+
+main<-tuesdata$olympics
+
+table(main$team)
+table(main$noc,useNA = "a")
+
+cleaned_countries<-main%>%
+  group_by(noc,team)%>%
+  summarize(n=n())%>%
+  group_by(noc)%>%
+  slice_max(n)%>%
+  ungroup()
+
+main_rel<-main%>%
+  filter(grepl(x = games,pattern = "Summer"))
+
+participants<-main_rel%>%
+  group_by(year,noc)%>%
+  summarize(n_part=n(),.groups = "drop")
+
+medals<-main_rel%>%
+  filter(!is.na(medal))%>%
+  distinct(year,noc,event,medal)%>%
+  group_by(year,noc)%>%
+  summarize(n_medal=n(),.groups = "drop")
+
+joined<-participants%>%
+  left_join(medals)%>%
+  mutate(
+    n_medal=case_when(
+      is.na(n_medal)~0,
+      TRUE~n_medal
+    )
+  )%>%
+  tidyr::complete(year,noc,fill=list(n_part=0,n_medal=0))
+
+differences=joined%>%
+  group_by(noc)%>%
+  arrange(year)%>%
+  mutate(
+    d_p=n_part-lag(n_part),
+    d_m=n_medal-lag(n_medal)
+  )%>%
+  ungroup()%>%
+  filter(year!=1896)
+
+```
+
+join countries and continents
+
+try figure for 08 vs 12
+
+post that
+
+extend later
+
+## Figure
+
+```{r}
+
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 20,
+  height = 13,
+  filename = "fig_07_30.png")
+```
