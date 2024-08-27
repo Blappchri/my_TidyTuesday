@@ -1,0 +1,179 @@
+---
+title: "TT_2024_08_27"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(tram)
+library(plotly)
+
+tuesdata <- tidytuesdayR::tt_load('2024-08-27')
+
+main<-tuesdata$power_rangers_episodes
+
+for_model<-main%>%
+  transmute(
+    season=season_title%>%factor(),
+    score=IMDB_rating%>%as.numeric()
+  )
+
+#create estimates as summaries to visualize
+model<-Colr(
+  score~season|season,
+  data=for_model,
+  bounds=c(0,10),#tell model about lower boundary
+  support=c(0,10),#set area of importance
+  scale_shift=TRUE#It's been a while since I studied this, but it should make the prowesses more comparable in the visualization
+  )
+
+summary(model)
+
+#grab beta
+prowess<-coef(model)[grepl(pattern = "^season",names(coef(model)))]
+names(prowess)<-stringr::str_remove(names(prowess),"season")
+prowess
+#grab gamma
+consistency<-coef(model)[grepl(pattern = "^scl_season",names(coef(model)))]
+names(consistency)<-stringr::str_remove(names(consistency),"scl_season")
+consistency
+
+to_plot<-data.frame(
+  season=c(names(prowess),"Beast Morphers (Season 1)"), prowess=c(prowess,NA)
+  )%>%
+  mutate(
+    prowess=case_when(
+      is.na(prowess)~0,#fill in model reference
+      TRUE~prowess
+    )
+  )%>%
+  left_join(
+    data.frame(
+      season=names(consistency), consistency=consistency
+    ))%>%
+  mutate(
+    consistency=case_when(
+      is.na(consistency)~0,#same as above
+      TRUE~consistency
+    )
+  )
+
+order=main%>%
+  group_by(season_title)%>%
+  slice_min(air_date,with_ties = F)%>%
+  ungroup()%>%
+  arrange(air_date)%>%
+  transmute(season=season_title,order=row_number())
+  
+to_plot<-to_plot%>%
+  left_join(order)%>%
+  arrange(order)
+```
+
+## Figure (Static)
+
+```{r}
+static_figure<-to_plot%>%ggplot(aes(
+  x=-exp(consistency),
+  y=-prowess,
+  label=season,
+  ))+
+  geom_path(col="white",linetype = 2)+#respects order unlike geom_line
+  geom_point(shape=18,size=5)+
+  theme_minimal()+
+  scale_x_continuous("More Fluctuations→", labels = NULL)+
+  scale_y_continuous("Better Overall→", labels = NULL)+
+  theme(
+    plot.background = element_rect(fill="darkred"),
+    text = element_text(color="white")
+  )+
+  ggtitle("Episode Quality of Power Rangers Seasons   #TidyTuesday\n(According to IMDB user ratings)")+
+  geom_label_repel(
+    segment.colour="black",fill = "white",
+    min.segment.length = 0,
+    colour = "black",size = 3
+    )
+```
+
+## Figure (Animation) Attempt Plotly
+
+```{r}
+to_animate<-to_plot%>%
+  select(
+    -prowess,
+    -consistency,
+    frame=order,
+    frame_title=season,
+    )%>%
+  mutate(
+    fake_key="everything",
+    frame_title=factor(frame_title,levels=to_plot$season)#for ordering
+    )%>%
+  left_join(
+    to_plot%>%
+      transmute(
+        fake_key="everything",
+        order=order,
+        prowess=prowess,
+        consistency=consistency,
+        season=season%>%factor()
+      ),relationship = "many-to-many"
+      )%>%
+  filter(frame>=order)%>%
+  select(-fake_key)%>%
+  group_by(frame_title)%>%
+  mutate(
+    consistency=exp(consistency),
+    across(prowess:consistency,#for these two steps I could have probably also just searched for what option decouples axes between frames
+           ~.x-(max(.x)+min(.x))/2),
+    across(prowess:consistency,
+           ~case_when(
+             .x==0~.x,
+             TRUE~.x/max(abs(.x)))
+           ),
+    size_symbol=case_when(
+      order==max(order)~5,
+      order==1~2.5,
+      TRUE~2
+    ),
+    label=case_when(
+      order==max(order)~season,
+      TRUE~NA
+    )
+  )%>%
+  ungroup()
+animation<-(to_animate%>%
+  ggplot(aes(
+    x=consistency,
+    y=-prowess,
+    frame=frame_title,
+    label=label,
+    ids=order
+  ))+
+  geom_path(col="white",linetype = 2)+#respects order unlike geom_line
+  geom_point(aes(size=size_symbol),col="white",shape=18)+
+  theme_minimal()+
+  scale_x_continuous("More Consistent→", labels = NULL)+
+  scale_y_continuous("Better Overall→", labels = NULL)+
+  ggtitle("Episode Quality of Power Rangers Seasons   #TidyTuesday\n(according to IMDB user ratings)")+
+  theme(
+    plot.background = element_rect(fill="darkred"),
+    text = element_text(color="white"),
+    panel.background = element_rect(fill="darkred")
+  )
+    )%>%
+  ggplotly()%>%
+  animation_opts(frame=1300,transition=500)%>%
+  animation_slider(
+    currentvalue = list(prefix = "Season:", font = list(color="white"),offset=50)
+  )
+#I would have loved to hide the play button, but that did not work out
+animation
+#couldnt figure out saving. had to do manually via screen capture
+```
