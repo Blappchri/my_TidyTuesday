@@ -1,0 +1,144 @@
+---
+title: "TT_2024_09_03"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-09-03')
+
+main<-tuesdata$stackoverflow_survey_single_response
+
+features<-main%>%
+  transmute(
+    ruser=case_when(
+      r_used==1~"R user",
+      r_used==0~"No R user",
+      TRUE~"Missing"
+    ),
+    status=case_when(
+      main_branch%in%c(1,5)~"Professional or former professional",
+      is.na(main_branch)~"Missing",
+      TRUE~"Enthusiast"
+    ),
+    experience=case_when(
+      is.na(years_code)~"Missing",
+      years_code>10~"More than 10 years",
+      TRUE~"Less experienced"
+    ),
+    community=case_when(
+      so_comm%in%c(5,6)~"I am part of the SO community",
+      is.na(so_comm)~"Missing",
+      TRUE~"Not part of community"
+    ),
+    trust=case_when(
+      is.na(ai_select)~"Missing",
+      ai_select==2~"Not yet",
+      ai_select==1~"No plans",
+      ai_acc%in%c(1,4)~"Distrust",
+      ai_acc==3~"Neutral",
+      ai_acc%in%c(2,4)~"Trust",
+      TRUE~"Missing"
+    )
+  )%>%
+  filter(if_any(everything(),~!is.na(.x)))
+
+table(features$ruser,features$trust)
+table(features$status,features$trust)
+table(features$experience,features$trust)
+table(features$community,features$trust)
+#simplify for figure micromanaging
+for_fig<-features%>%
+  tidyr::pivot_longer(cols = ruser:community)%>%
+  transmute(
+    x_pos=case_when(
+     value=="Professional or former professional"~1,
+     value=="Enthusiast"~2,
+     value=="More than 10 years"~4,
+     value=="Less experienced"~5,
+     value=="I am part of the SO community"~7,
+     value=="Not part of community"~8,
+     value=="R user"~10
+    ),
+    cat=case_when(
+      trust=="Trust"~"I've found that I can trust AI tools",
+      trust=="Neutral"~"AI has been so-so",
+      trust=="Distrust"~"I've found that I cannot trust AI tools",
+      trust=="Not yet"~"I haven't tried AI tools yet",
+      trust=="No plans"~"I have no plans to try AI tools",
+      TRUE~NA
+    )%>%factor(levels = c(
+           "I've found that I can trust AI tools",
+           "AI has been so-so",
+           "I've found that I cannot trust AI tools",
+           "I haven't tried AI tools yet",
+           "I have no plans to try AI tools"
+    ))
+  )%>%
+  filter(!(is.na(cat)|is.na(x_pos)))%>%
+  group_by(x_pos)%>%
+  mutate(
+    size_group=n()
+  )%>%
+  ungroup()%>%
+  group_by(cat,x_pos)%>%
+  summarize(size_perc=n()/first(size_group))%>%
+  ungroup()
+```
+
+```{r}
+fig<-for_fig%>%
+  ggplot(aes(x=x_pos,y=size_perc,fill=cat))+
+  geom_hline(yintercept = c(0),linewidth = 3)+
+  geom_bar(stat="identity",position = "dodge")+
+  theme_minimal()+
+  theme(
+    legend.position = "top",
+    panel.grid.major.x  = element_blank(),
+    panel.grid.minor.y  = element_blank(),
+    panel.grid.minor.x  = element_blank(),
+    panel.grid.major.y = element_line(color="black"), 
+    axis.text.x = element_text(angle=90), 
+    plot.background = element_rect(fill="lightcyan")
+    )+
+  scale_y_continuous(NULL,labels = scales::percent)+
+  scale_fill_manual(NULL,values=c(
+    "I've found that I can trust AI tools"="olivedrab3",
+    "AI has been so-so"="orange2",
+    "I've found that I cannot trust AI tools"="firebrick4",
+    "I haven't tried AI tools yet"="honeydew3",
+    "I have no plans to try AI tools"="honeydew4"
+  ))+
+  scale_x_continuous(
+    NULL,
+    breaks = c(1,2,4,5,7,8,10),
+    labels = c(
+      "Professional or\nformer professional",
+      "Coding enthusiast",
+      "More than 10 years\nof experience",
+      "Less experienced",
+      '"I am part of\nthe SO community"',
+      '"I am NOT part of\nthe SO community"',
+      "R user"
+    )
+  )+
+  guides(fill=guide_legend(nrow=2,byrow=TRUE))+
+  ggtitle("Experiences regarding AI Tools in Development Workflows   #TidyTuesday\n(Source:Stack Overflow Developer Sourvey 2024)")+
+  coord_cartesian(ylim = c(NA,0.4))
+
+fig
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 23,
+  height = 17,
+  filename = "fig_09_03.png")
+```
+
