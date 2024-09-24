@@ -1,0 +1,55 @@
+---
+title: "TT_2024_09_24"
+format: html
+editor: visual
+---
+
+Abandoned because idea did not fit. What I wanted to look at was to stable across years
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-09-24')
+
+main<-tuesdata$individual_results_df
+
+for_fig<-main%>%
+  group_by(year)%>%
+  filter(!is.na(p1))%>%#some do not have individual results
+  mutate(
+    across(
+      p1:p6,~.x-max(.x,na.rm = T)
+    )
+  )%>%
+  ungroup()%>%
+  transmute(
+    worst=pmin(p1,p2,p3,p4,p5,p6,na.rm = T),
+    rank=individual_rank,
+    year=year,
+    award_keep=case_when(
+      grepl("Gold",award)~TRUE,
+      TRUE~FALSE
+    )
+  )%>%
+  filter(award_keep)%>%
+  group_by(year)%>%
+  summarize(
+    min_worst=min(worst),
+    max_worst=max(worst)
+    )%>%
+  filter(year>=1980)
+
+```
+
+## Plotting
+
+```{r}
+
+for_fig%>%
+  ggplot(aes(y=year,x=min_worst,xend=max_worst))+
+  geom_segment()
+```
