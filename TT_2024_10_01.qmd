@@ -1,0 +1,118 @@
+---
+title: "TT_2024_10_01"
+format: html
+editor: visual
+---
+
+Abandoned because idea did not fit. What I wanted to look at was to stable across years
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-10-01')
+
+main<-tuesdata$chess
+
+cuts<-c(main$white_rating,main$black_rating)%>%quantile(c(0.125,0.25,0.375,0.5,0.625,0.75,0.875))
+
+for_fig<-main%>%
+  mutate(
+    across(contains("_rating"),~case_when(
+      .x<1268~1,
+      .x<1394~2,
+      .x<1500~3,
+      .x<1564~4,
+      .x<1670~5,
+      .x<1788~6,
+      .x<1939~7,
+      TRUE~8,
+    ))
+  )%>%
+  group_by(white_rating,black_rating)%>%
+  summarize(
+    n=n(),
+    n_no_draw=n-sum(winner=="draw"),
+    win_white=sum(winner=="white")/n_no_draw,
+    .groups = "drop"
+  )
+
+```
+
+## Plotting
+
+```{r}
+
+fig<-for_fig%>%
+  ggplot(aes(y=black_rating,x=white_rating,fill=win_white))+
+  geom_tile()+
+  scale_fill_gradient(
+    low="black",high="white",limits=c(0,1),guide = "none"
+    )+
+  shadowtext::geom_shadowtext(
+    aes(
+      label=paste0(round(win_white,2)*100,"%")
+      ),nudge_y = -0.3
+    )+
+  theme_minimal()+
+  theme(
+    plot.background = element_rect(fill="lightblue"),
+    panel.grid.major.x  = element_blank(),
+    panel.grid.minor.y  = element_blank(),
+    panel.grid.minor.x  = element_blank(),
+    panel.grid.major.y = element_blank() 
+    )+
+  scale_x_continuous("→ Increasing Rating for White →",breaks = NULL)+
+  scale_y_continuous("→ Increasing Rating for Black →",breaks = NULL)+
+  coord_fixed()+
+  ggtitle("Chess Win Percentage of White\nn=19108                                      #TidyTuesday")+
+  geom_segment(#aesthetic flourish
+    aes(
+      y=y,
+      x=x,
+      xend=xend,
+      col=col
+      ),
+    inherit.aes = FALSE,
+    data = data.frame(
+      y=rep(c(0.5,8.5),each=8),
+      x=rep(0.5:7.5,2),
+      xend=rep(1.5:8.5,2),
+      col=c(
+        rep(c("black","white"),4),
+        rep(c("white","black"),4)
+      )
+    )
+  )+
+  geom_segment(#aesthetic flourish 2
+    aes(
+      x=y,
+      y=x,
+      yend=xend,
+      col=col
+      ),
+    inherit.aes = FALSE,
+    data = data.frame(
+      y=rep(c(0.5,8.5),each=8),
+      x=rep(0.5:7.5,2),
+      xend=rep(1.5:8.5,2),
+      col=c(
+        rep(c("black","white"),4),
+        rep(c("white","black"),4)
+      )
+    )
+  )+
+  scale_color_manual(values=c("white"="white","black"="black"),guide="none")
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 13,
+  height = 14.15,
+  filename = "fig_10_01.png")
+```
