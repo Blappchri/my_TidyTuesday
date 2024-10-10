@@ -4,8 +4,6 @@ format: html
 editor: visual
 ---
 
-Abandoned because idea did not fit. What I wanted to look at was to stable across years
-
 ## Loading and Preparation
 
 ```{r}
