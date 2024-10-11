@@ -1,0 +1,89 @@
+---
+title: "TT_2024_10_08"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-10-08')
+
+main<-tuesdata$most_visited_nps_species_data
+
+for_fig<-main%>%
+  filter(OccurrenceTags=="False Report")%>%
+  filter(RecordStatus=="Approved")%>%
+  filter(Occurrence=="Not In Park")%>%
+  mutate(
+    parkcat=case_when(
+      ParkName=="Hot Springs National Park"~"Hot Springs\nArkansas",
+      ParkName=="Zion National Park"~"Zion\nUtah",
+      ParkName=="Bryce Canyon National Park"~"Bryce Canyon\nUtah",
+      ParkName=="Glacier National Park"~"Glacier\nMontana",
+      ParkName=="Yosemite National Park"~"Yosemite\nCalifornia",
+      ParkName=="Great Smoky Mountains National Park"~"Smoky Mountains\nInter-State",
+      ParkName=="Acadia National Park"~"Acadia\nMaine",
+      ParkName=="Joshua Tree National Park"~"Joshua Tree\nCalifornia",
+      TRUE~"Rest of Top 15"
+    )%>%factor(levels = c(
+      "Hot Springs\nArkansas",
+      "Zion\nUtah",
+      "Bryce Canyon\nUtah",
+      "Glacier\nMontana",
+      "Yosemite\nCalifornia",
+      "Smoky Mountains\nInter-State",
+      "Acadia\nMaine",
+      "Joshua Tree\nCalifornia",
+      "Rest of Top 15"
+    )),
+    orgcat=case_when(
+      CategoryName=="Vascular Plant"~"Plants",
+      CategoryName=="Bird"~"Birds",
+      CategoryName=="Fish"~"Fish",
+      TRUE~"Other"
+    )%>%factor(levels=c(
+      "Plants",
+      "Birds",
+      "Fish",
+      "Other"
+    ))
+  )%>%group_by(orgcat,parkcat)%>%
+  summarize(
+    n=n(),.groups = "drop"
+  )%>%
+  tidyr::complete(orgcat,parkcat,fill=list(n=0))
+
+```
+
+## Plotting
+
+```{r}
+fig<-for_fig%>%
+  ggplot(aes(x=parkcat,y=n))+
+  geom_bar(stat="identity",fill="springgreen4")+
+  facet_grid(rows = vars(orgcat))+
+  theme_minimal()+
+  scale_x_discrete(NULL)+
+  scale_y_continuous("Number of Distinct Species")+
+  theme(
+    panel.grid.major.y  = element_blank(),
+    #panel.grid.minor.y = element_blank(),
+    plot.background = element_rect("palegreen2")
+    )+
+  ggtitle("Recorded False Reports of Species across US National Parks               #TidyTuesday")+
+  labs(subtitle = "I definitely expected the bird-watching community to be a menace across the entire 51 states, but\noutside of Arkansas they seem well-behaved. Botanists, however...")
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 22,
+  height = 14.15,
+  filename = "fig_10_08.png")
+```
