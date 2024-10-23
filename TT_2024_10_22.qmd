@@ -1,0 +1,95 @@
+---
+title: "TT_2024_10_22"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-10-22')
+
+main<-tuesdata$cia_factbook
+
+for_fig<-main%>%
+  filter(population>=5*10^6)%>%#just for a cleaner figure
+  transmute(
+    country=country,
+    internet_density=internet_users/population*1000,
+    death_rate=death_rate,
+    color=case_when(
+      country%in%c(
+        "China","Hong Kong", "Taiwan", "Korea, South", 
+        "United Arab Emirates", "South Africa",
+        "Canada", "United States"
+        )~"marked",
+        TRUE~"unmarked"
+      )
+  )%>%
+  filter(!if_any(internet_density:death_rate,~is.na(.x)))
+
+```
+
+## Plotting
+
+```{r}
+fig<-for_fig%>%
+  ggplot(
+    aes(x=internet_density,y=death_rate,col=color)
+    )+
+  geom_abline(intercept = median(for_fig$death_rate),slope = 0)+
+  geom_text(data = data.frame(x=450,y=8,label="Median Death Rate"),
+    x = 450,y=8,label="Median Death Rate",inherit.aes = FALSE)+
+  geom_vline(xintercept=median(for_fig$internet_density))+
+  geom_text(data = data.frame(x=185,y=10,label="Median Internet Rate"),
+    x = 185,y=12,label="Median Internet Rate",inherit.aes = FALSE,angle = 90)+
+  geom_jitter()+
+  scale_y_continuous("Yearly Deaths per 1000 People")+
+  scale_x_continuous("Internet Users per 1000 People")+
+  ggtitle("The World a Decade ago, according to the CIA Factbook       #TidyTuesday")+
+  scale_color_manual(values = c("marked"="red3","unmarked"="grey60"))+
+  theme_minimal()+
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill="white")
+  )+
+  labs(subtitle = "Snapshot date of data is somewhere around 2014\nCountries with a population below 5 million are omitted to reduce clutter")+
+  coord_cartesian(ylim=c(0,NA))+
+  geom_segment(
+    data = data.frame(
+      x=c(750,720,500,820,210,300),
+      y=c(2,2,1,5,17,15),
+      xend=c(770,690,610,805,100,288),
+      yend=c(8,6.5,1.9,6.4,17.5,7.7)
+      ),
+    aes(x=x,y=y,xend=xend,yend=yend),
+    col="red3",
+    arrow = arrow(length = unit(0.2,units = "cm"))
+    )+ geom_label(
+    data = data.frame(
+      label=c(
+        "Both the US and Canada, as well as\nTaiwan and Hong Kong, form very close pairs.\nThe third point close to the NA pair is Switzerland.",
+        "South Korea, which recent history\nhas reveealed to be quite bad at both\ndemographics and the internet, is here",
+        "The UAE has the lowest deaths",
+        "South Africa has the highest deaths",
+        "China can be found here in the middle"
+        ),
+      x=c(750,820,500, 210,300),
+      y=c(2,5,1,17,15)
+    ),
+    aes(x=x,y=y,label=label),inherit.aes = FALSE,fill="red3",col="white"
+      )
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 37.5,
+  height = 21,
+  filename = "fig_10_22.png")
+```
