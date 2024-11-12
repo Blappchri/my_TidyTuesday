@@ -1,0 +1,125 @@
+---
+title: "TT_2024_11_12"
+format: html
+editor: visual
+---
+
+## Loading and Preparation
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+
+tuesdata <- tidytuesdayR::tt_load('2024-11-12')
+
+main<-tuesdata$countries
+main2<-tuesdata$former_countries
+
+for_fig<-main%>%
+  transmute(
+    iso=alpha_3,
+    name=name,
+    former=F
+  )%>%
+  bind_rows(
+    main2%>%
+      transmute(
+        iso=alpha_3,
+        name=name,
+        former=T
+      )
+  )%>%
+  mutate(
+    name_for_match=toupper(name),
+    first=stringr::str_locate(name_for_match, substr(iso,1,1))[,"start"],
+    second=stringr::str_locate(name_for_match, substr(iso,2,2))[,"start"],
+    third=stringr::str_locate(name_for_match, substr(iso,3,3))[,"start"],
+    end=nchar(name)#as in the lenght of the name, later went unused
+  )%>%
+  arrange(
+    first,second,third,name
+  )%>%
+  filter(!former)%>%#discovered figure doesnt need more points. Just current ends up very busy
+  mutate(
+    index=row_number()-1,#this indexing helps later
+    across(first:third,~case_when(
+    .x>9~10,#to be replaced later with special treatment in figure
+    TRUE~.x
+    )),    
+    across(first:third,~case_when(
+      is.na(.x)~11,#to be replaced later with special treatment in figure
+      TRUE~.x
+    ))
+  )%>%
+  mutate(
+    facet=floor(index/65),
+    index_new=index%%65#remainder operation
+  )
+
+```
+
+## Plotting
+
+```{r}
+for_fig%>%
+  ggplot()+
+  geom_path(aes(x=first-0.05,y=index_new-0.1),col="#05DBF2")+
+  geom_path(aes(x=second,y=index_new),col="#05AFF2",size=0.5)+
+  geom_path(aes(x=third+0.05,y=index_new+0.1),col="#056CF2",size=0.5)+
+  facet_wrap(~facet,ncol = 4)+
+  theme_minimal()+
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_blank(),
+    plot.background = element_rect(fill="#ABBB97"),
+    panel.grid.major.x = element_line(color="gray80"),
+    axis.text.x = element_text(angle=60)
+  )+
+  geom_vline(xintercept=9.5,col="black",linetype=2)+
+  scale_y_continuous(NULL,breaks = NULL)+
+  scale_x_continuous(
+    "Position of first occurrence within country name",
+    breaks=1:11,
+    labels = c("1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th or later", "Letter not found"), minor_breaks = FALSE
+    )+
+  geom_text(
+    data = data.frame(
+      x=0.65,y=1,facet=0:3,
+      text=c(
+        "Myanmar(MMR), Cocos-Keeling Islands(CCK), Guernsey(GGY), ..., Finland(FIN), ..., Senegal(SEN), ",
+        "Somalia(SON), ..., Uruguay(URY), ..., Madagascar(MDG),",
+        "Mayotte(MYT), ..., Singapore(SGP), ..., Costa Rica(CRI), ",
+        "Zimbabwe(ZWE), ..., Sri Lanka(LKA), ..., Algeria(DZL), Cambodia(KHM) and Switzerland(CHE)"
+      )
+    ),
+    aes(x=x,y=y,label=text),angle=90,hjust = 0
+  )+
+  ggtitle("How Countries Picked Their ISO Code     #TidyTuesday")+
+  labs(subtitle = "How would you summarize your country's name into 3 letters?\nEach country - as well as some country-ish entities - possesses a ISO Country Code that does just that, and the methods used to create them vary quite a bit.\nThis visualization shows from where within each name the letters have been picked.\nEach of the three ISO letters is represented by a path drawn across the country names of the world.")+
+  geom_label(
+    data = data.frame(
+      label=c(
+        stringr::str_wrap("After a few countries with duplicated letters, like Myanmar with its MMY, we arrive at the big batch of countries that simply picked the first three letters of their (English) name, starting with AFG for Afghanistan.",width = 26),
+        paste(stringr::str_wrap("Many countries, like Barbados with BRB, seem to be dodging vowels.",width=28), stringr::str_wrap("In this batch we also encounter Romania's ROU, our first example of a country picking a ''missing'' letter. This, like many things, can be blamed on French.",width = 26),sep = "\n"),
+        "Most countries here are still dodging vowels like Guatemala with its GTM, but there are some that deliberately picked the end of their name as their final letter. Examples are Paraguay with PRY and Hong Kong with HKG. The are also abbreviations, like 'Sao Tome and Principe' picking STP.",
+        "Towards the end things start to get messy. Examples of what we find here are:\nThe DEU of Germany, which is based on German\nTürkiye, which has recently changed its official English name to match their Turkish one, but hasn't adjusted the ISO TUR\nSwitzerland, which used Latin to picked their letters."
+        ),
+      facet=0:3,
+      x=c(6,7,7,7),
+      y=c(50,10,50,50)
+    ),
+    aes(x=x,y=y,label=label)
+  )
+
+
+
+ggsave(
+  plot = fig,
+  device = "png",
+  dpi=300,
+  units = "cm",
+  width = 37.5,
+  height = 21,
+  filename = "fig_10_22.png")
+```
