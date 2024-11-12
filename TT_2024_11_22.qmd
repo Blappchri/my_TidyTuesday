@@ -62,7 +62,7 @@ for_fig<-main%>%
 ## Plotting
 
 ```{r}
-for_fig%>%
+fig<-for_fig%>%
   ggplot()+
   geom_path(aes(x=first-0.05,y=index_new-0.1),col="#05DBF2")+
   geom_path(aes(x=second,y=index_new),col="#05AFF2",size=0.5)+
@@ -88,38 +88,37 @@ for_fig%>%
       x=0.65,y=1,facet=0:3,
       text=c(
         "Myanmar(MMR), Cocos-Keeling Islands(CCK), Guernsey(GGY), ..., Finland(FIN), ..., Senegal(SEN), ",
-        "Somalia(SON), ..., Uruguay(URY), ..., Madagascar(MDG),",
-        "Mayotte(MYT), ..., Singapore(SGP), ..., Costa Rica(CRI), ",
+        "Somalia(SON), Suriname(SUR), Sweden(SWE), ..., Uruguay(URY), ..., Madagascar(MDG),",
+        "Mayotte(MYT), Montenegro(MNE), Nepal(NPL), ..., Singapore(SGP), ..., Costa Rica(CRI), ",
         "Zimbabwe(ZWE), ..., Sri Lanka(LKA), ..., Algeria(DZL), Cambodia(KHM) and Switzerland(CHE)"
       )
     ),
     aes(x=x,y=y,label=text),angle=90,hjust = 0
   )+
-  ggtitle("How Countries Picked Their ISO Code     #TidyTuesday")+
+  ggtitle("How Countries Pick Their ISO Code     #TidyTuesday")+
   labs(subtitle = "How would you summarize your country's name into 3 letters?\nEach country - as well as some country-ish entities - possesses a ISO Country Code that does just that, and the methods used to create them vary quite a bit.\nThis visualization shows from where within each name the letters have been picked.\nEach of the three ISO letters is represented by a path drawn across the country names of the world.")+
   geom_label(
     data = data.frame(
       label=c(
         stringr::str_wrap("After a few countries with duplicated letters, like Myanmar with its MMY, we arrive at the big batch of countries that simply picked the first three letters of their (English) name, starting with AFG for Afghanistan.",width = 26),
-        paste(stringr::str_wrap("Many countries, like Barbados with BRB, seem to be dodging vowels.",width=28), stringr::str_wrap("In this batch we also encounter Romania's ROU, our first example of a country picking a ''missing'' letter. This, like many things, can be blamed on French.",width = 26),sep = "\n"),
-        "Most countries here are still dodging vowels like Guatemala with its GTM, but there are some that deliberately picked the end of their name as their final letter. Examples are Paraguay with PRY and Hong Kong with HKG. The are also abbreviations, like 'Sao Tome and Principe' picking STP.",
-        "Towards the end things start to get messy. Examples of what we find here are:\nThe DEU of Germany, which is based on German\nTürkiye, which has recently changed its official English name to match their Turkish one, but hasn't adjusted the ISO TUR\nSwitzerland, which used Latin to picked their letters."
+        paste(stringr::str_wrap("Many countries, like Barbados with BRB, seem to be dodging vowels.",width=28), stringr::str_wrap("In this batch we also encounter Romania's ROU, our first example of a country picking a ''missing'' letter. This, like many things, can be blamed on French.",width = 27),sep = "\n"),
+        stringr::str_wrap("A few countries are deliberately picking the end of their name as final letter. An example is Paraguay with PRY.",width = 35),
+        paste(stringr::str_wrap("Towards the end things start to get messy. Examples of what we find here are:",width = 43),"- DEU for Germany, based on German",stringr::str_wrap("- Türkiye, which changed its English name to match Turkish, but left TUR as is",width = 43),"- Switzerland, which used Latin to arrive at CHE",sep="\n")
         ),
       facet=0:3,
-      x=c(6,7,7,7),
-      y=c(50,10,50,50)
+      x=c(6,7,7.25,6),
+      y=c(50,10,28,62)
     ),
     aes(x=x,y=y,label=label)
-  )
-
-
+  )+
+  coord_cartesian(clip = FALSE)
 
 ggsave(
   plot = fig,
   device = "png",
   dpi=300,
   units = "cm",
-  width = 37.5,
-  height = 21,
-  filename = "fig_10_22.png")
+  width = 50,
+  height = 27,
+  filename = "fig_11_12.png")
 ```
